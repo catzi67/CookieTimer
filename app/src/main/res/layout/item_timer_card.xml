@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="8dp"
+    android:layout_marginHorizontal="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="8dp"
+    app:cardBackgroundColor="@android:color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Timer Name -->
+        <TextView
+            android:id="@+id/textViewTimerName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textSize="22sp"
+            android:textColor="@color/gray_800"
+            android:gravity="center"
+            android:layout_marginBottom="8dp"
+            tools:text="Bake Cookies" />
+
+        <!-- Countdown Text -->
+        <TextView
+            android:id="@+id/textViewCountdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="48sp"
+            android:textStyle="bold"
+            android:textColor="@color/blue_600"
+            android:gravity="center"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="16dp"
+            tools:text="05:00" />
+
+        <!-- Buttons Layout -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="8dp">
+
+            <!-- Start Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonStart"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Start"
+                android:textColor="@android:color/white"
+                android:backgroundTint="@color/green_600"
+                app:cornerRadius="8dp"
+                android:layout_marginEnd="8dp"
+                android:stateListAnimator="@animator/button_press_animation" />
+
+            <!-- Stop Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonStop"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Stop"
+                android:textColor="@android:color/white"
+                android:backgroundTint="@color/red_600"
+                app:cornerRadius="8dp"
+                android:layout_marginEnd="8dp"
+                android:stateListAnimator="@animator/button_press_animation" />
+
+            <!-- Reset Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonReset"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Reset"
+                android:textColor="@color/gray_800"
+                android:backgroundTint="@color/blue_200"
+                app:cornerRadius="8dp"
+                android:stateListAnimator="@animator/button_press_animation" />
+
+        </LinearLayout>
+
+        <!-- Swipe Hint Text -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Swipe left to delete"
+            android:textColor="@color/gray_500"
+            android:textSize="12sp"
+            android:gravity="center"
+            android:layout_marginTop="8dp"/>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

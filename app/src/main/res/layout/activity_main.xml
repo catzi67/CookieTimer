@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/gradient_background"
+    tools:context=".MainActivity">
+
+    <!-- App Title -->
+    <TextView
+        android:id="@+id/textViewTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🍪 CookieTimer 🍪"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:textColor="@color/gray_800"
+        android:gravity="center"
+        android:padding="16dp"
+        android:layout_marginTop="16dp" />
+
+    <!-- Add Timer Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/buttonAddTimer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add New Timer"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:backgroundTint="@color/blue_600"
+        app:cornerRadius="12dp"
+        app:elevation="8dp"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="16dp"
+        android:paddingVertical="14dp"
+        android:stateListAnimator="@animator/button_press_animation" />
+
+    <!-- RecyclerView for Timers -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewTimers"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="16dp"
+        android:clipToPadding="false"
+        android:paddingBottom="16dp"
+        tools:listitem="@layout/item_timer_card" />
+
+</LinearLayout>
+
+
