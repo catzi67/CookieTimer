@@ -1,19 +1,14 @@
+// --- src/main/java/com/catto/cookietimer/MainActivity.kt ---
 package com.catto.cookietimer
 
 import android.app.AlertDialog
-import android.content.Context
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.VibrationEffect
 import android.os.Vibrator
-import android.text.InputType
 import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -36,10 +31,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // The status bar color is now handled by the theme and the translucent
+        // status bar in themes.xml, allowing the activity's background to show through.
+
         setContentView(R.layout.activity_main) // Set the main activity layout
 
         // Initialize MediaPlayer and Vibrator
         mediaPlayer = MediaPlayer.create(this, R.raw.alarm_sound) // Ensure you have alarm_sound.mp3 in res/raw
+        // Corrected: Use the class-based getSystemService to avoid deprecated string constant
         vibrator = getSystemService(Vibrator::class.java)
 
         // Setup RecyclerView
@@ -67,97 +67,83 @@ class MainActivity : AppCompatActivity() {
     // Function to show a dialog for adding a new timer
     private fun showAddTimerDialog() {
         val builder = AlertDialog.Builder(this)
-        builder.setTitle("Add New Timer")
+        // Set the title for the dialog. This title will appear at the top of the custom dialog view.
+        // Referencing string resource for dialog title
+        builder.setTitle(getString(R.string.add_new_timer_dialog_title))
 
-        // Set up the layout for the dialog inputs
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(50, 20, 50, 20) // Add some padding
-        }
+        // Inflate a custom layout for the dialog content
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_timer, null)
+        builder.setView(dialogView) // Set the custom inflated view as the dialog's content
 
-        // Input for timer name
-        val inputName = EditText(this).apply {
-            hint = "Timer Name (e.g., Bake Cookies)"
-            inputType = InputType.TYPE_CLASS_TEXT
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            setSingleLine(true) // Prevent multi-line input
-        }
-        layout.addView(inputName)
+        // Get references to the EditText fields from the inflated custom layout
+        val inputName = dialogView.findViewById<EditText>(R.id.inputTimerName)
+        val inputDuration = dialogView.findViewById<EditText>(R.id.inputTimerDuration)
 
-        // Input for timer duration (minutes)
-        val inputDuration = EditText(this).apply {
-            hint = "Duration (minutes)"
-            inputType = InputType.TYPE_CLASS_NUMBER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            setText("1") // Default value
-        }
-        layout.addView(inputDuration)
+        // Set default value for duration input
+        inputDuration.setText("1")
 
-        builder.setView(layout)
+        // Set up the positive (Add) button for the dialog
+        builder.setPositiveButton(getString(R.string.add_button_text)) { dialog, _ ->
+            val name = inputName.text.toString().trim() // Get timer name from input
+            val durationText = inputDuration.text.toString() // Get duration text
+            val durationMinutes = durationText.toIntOrNull() // Convert to integer
 
-        // Set up the positive (Add) button
-        builder.setPositiveButton("Add") { dialog, _ ->
-            val name = inputName.text.toString().trim()
-            val durationText = inputDuration.text.toString()
-            val durationMinutes = durationText.toIntOrNull()
-
+            // Validate inputs
             if (name.isNotEmpty() && durationMinutes != null && durationMinutes > 0) {
-                // Create and add the new timer
+                // Create and add the new Timer object to the list
                 val newTimer = Timer(
-                    id = System.currentTimeMillis(), // Unique ID
+                    id = System.currentTimeMillis(), // Unique ID for the timer
                     name = name,
-                    initialDurationSeconds = durationMinutes * 60,
+                    initialDurationSeconds = durationMinutes * 60, // Convert minutes to seconds
                     remainingTimeSeconds = durationMinutes * 60,
                     isRunning = false,
                     isCompleted = false
                 )
-                timers.add(newTimer)
-                timerAdapter.notifyItemInserted(timers.size - 1) // Notify adapter of new item
-                dialog.dismiss()
+                timers.add(newTimer) // Add to data list
+                timerAdapter.notifyItemInserted(timers.size - 1) // Notify RecyclerView adapter of the new item
+                dialog.dismiss() // Close the dialog
             } else {
-                Toast.makeText(this, "Please enter a valid name and duration (min 1 minute).", Toast.LENGTH_LONG).show()
+                // Show a toast message if input is invalid
+                Toast.makeText(this, getString(R.string.toast_invalid_input), Toast.LENGTH_LONG).show()
             }
         }
 
-        // Set up the negative (Cancel) button
-        builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+        // Set up the negative (Cancel) button for the dialog
+        builder.setNegativeButton(getString(R.string.cancel_button_text)) { dialog, _ -> dialog.cancel() } // Dismiss the dialog
 
-        builder.show() // Display the dialog
+        builder.show() // Display the AlertDialog
     }
 
     // Starts a specific timer by its ID
     private fun startTimer(timerId: Long) {
-        val index = timers.indexOfFirst { it.id == timerId }
-        if (index != -1) {
+        val index = timers.indexOfFirst { it.id == timerId } // Find the index of the timer
+        if (index != -1) { // Ensure timer exists
             val timer = timers[index]
-            if (!timer.isRunning) {
-                // If the timer was completed, reset its remaining time before starting
+            if (!timer.isRunning) { // Only start if not already running
+                // Determine the time to start from: initial duration if completed, else remaining time
                 val timeToStart = if (timer.isCompleted) timer.initialDurationSeconds else timer.remainingTimeSeconds
 
+                // Create and start a new CountDownTimer
                 timer.countDownTimer = object : CountDownTimer(timeToStart * 1000L, 1000) {
                     override fun onTick(millisUntilFinished: Long) {
+                        // Update remaining time every second
                         timer.remainingTimeSeconds = TimeUnit.MILLISECONDS.toSeconds(millisUntilFinished).toInt()
-                        timerAdapter.notifyItemChanged(index) // Update UI for this timer
+                        timerAdapter.notifyItemChanged(index) // Notify adapter to refresh this timer's view
                     }
 
                     override fun onFinish() {
-                        timer.remainingTimeSeconds = 0
-                        timer.isRunning = false
-                        timer.isCompleted = true
-                        timer.countDownTimer = null // Clear reference
-                        timerAdapter.notifyItemChanged(index) // Update UI for completion
-                        playAlarmAndVibrate() // Trigger alarm
+                        // When timer finishes
+                        timer.remainingTimeSeconds = 0 // Set to 0
+                        timer.isRunning = false // Not running
+                        timer.isCompleted = true // Mark as completed
+                        timer.countDownTimer = null // Clear timer reference
+                        timerAdapter.notifyItemChanged(index) // Notify adapter for final state update
+                        playAlarmAndVibrate() // Trigger alarm and vibrate
                     }
                 }.start()
-                timer.isRunning = true
-                timer.isCompleted = false // Reset completed status when starting
-                timerAdapter.notifyItemChanged(index) // Update UI
+                timer.isRunning = true // Set running status
+                timer.isCompleted = false // Clear completed status if starting after completion
+                timerAdapter.notifyItemChanged(index) // Notify adapter of start
             }
         }
     }
@@ -168,10 +154,10 @@ class MainActivity : AppCompatActivity() {
         if (index != -1) {
             val timer = timers[index]
             if (timer.isRunning) {
-                timer.countDownTimer?.cancel() // Cancel the countdown
-                timer.isRunning = false
-                timer.countDownTimer = null // Clear reference
-                timerAdapter.notifyItemChanged(index) // Update UI
+                timer.countDownTimer?.cancel() // Cancel the active countdown
+                timer.isRunning = false // Update running status
+                timer.countDownTimer = null // Clear timer reference
+                timerAdapter.notifyItemChanged(index) // Notify adapter of stop
             }
         }
     }
@@ -181,10 +167,10 @@ class MainActivity : AppCompatActivity() {
         val index = timers.indexOfFirst { it.id == timerId }
         if (index != -1) {
             val timer = timers[index]
-            stopTimer(timerId) // Stop if running
-            timer.remainingTimeSeconds = timer.initialDurationSeconds
-            timer.isCompleted = false
-            timerAdapter.notifyItemChanged(index) // Update UI
+            stopTimer(timerId) // Ensure it's stopped before resetting
+            timer.remainingTimeSeconds = timer.initialDurationSeconds // Reset to initial duration
+            timer.isCompleted = false // Not completed
+            timerAdapter.notifyItemChanged(index) // Notify adapter of reset
         }
     }
 
@@ -192,72 +178,76 @@ class MainActivity : AppCompatActivity() {
     private fun playAlarmAndVibrate() {
         mediaPlayer?.apply {
             if (isPlaying) {
-                stop() // Stop any ongoing sound before playing again
+                stop() // Stop any current playback
             }
-            seekTo(0) // Rewind to start
-            start() // Play sound
+            seekTo(0) // Rewind to the beginning
+            start() // Start playing the alarm sound
         }
 
         vibrator?.apply {
-            if (hasVibrator()) {
-                val pattern = longArrayOf(0, 500, 200, 500) // Vibrate, pause, vibrate
-                // For API level 26 (Oreo) and above
+            if (hasVibrator()) { // Check if device has a vibrator
+                val pattern = longArrayOf(0, 500, 200, 500) // Vibrate for 500ms, pause 200ms, vibrate 500ms
+                // Use VibrationEffect for newer Android versions (API 26+)
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    vibrate(VibrationEffect.createWaveform(pattern, -1)) // -1 means don't repeat
+                    vibrate(VibrationEffect.createWaveform(pattern, -1)) // -1 means don't repeat pattern
                 } else {
-                    // Deprecated in API 26, but still works for older devices
+                    // Use deprecated vibrate for older devices
                     @Suppress("DEPRECATION")
-                    vibrate(pattern, -1) // -1 means don't repeat
+                    vibrate(pattern, -1) // -1 means don't repeat pattern
                 }
             }
         }
     }
 
-    // Callback class for swipe-to-delete functionality
+    // Callback class for swipe-to-delete functionality for RecyclerView items
     inner class SwipeToDeleteCallback : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+        // Not interested in drag & drop, so return false
         override fun onMove(
             recyclerView: RecyclerView,
             viewHolder: RecyclerView.ViewHolder,
             target: RecyclerView.ViewHolder
         ): Boolean {
-            return false // Not interested in drag & drop
+            return false
         }
 
+        // Called when an item is swiped
         override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+            // Get the position of the swiped item within the adapter's data set
+            // bindingAdapterPosition is safer during complex RecyclerView updates
             val position = viewHolder.bindingAdapterPosition
-            if (position != RecyclerView.NO_POSITION) {
-                // Show confirmation dialog before deleting
+            if (position != RecyclerView.NO_POSITION) { // Ensure position is valid
+                // Show a confirmation dialog before proceeding with deletion
                 AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Delete Timer")
-                    .setMessage("Are you sure you want to delete this timer?")
-                    .setPositiveButton("Delete") { dialog, _ ->
+                    .setTitle(getString(R.string.delete_timer_dialog_title))
+                    .setMessage(getString(R.string.delete_timer_dialog_message))
+                    .setPositiveButton(getString(R.string.delete_button_text)) { dialog, _ ->
                         val timerToDelete = timers[position]
-                        stopTimer(timerToDelete.id) // Stop timer if running before deletion
-                        timers.removeAt(position)
-                        timerAdapter.notifyItemRemoved(position) // Notify adapter
-                        dialog.dismiss()
+                        stopTimer(timerToDelete.id) // Stop the timer before removing it
+                        timers.removeAt(position) // Remove from the data source
+                        timerAdapter.notifyItemRemoved(position) // Notify the adapter about the removal
+                        dialog.dismiss() // Dismiss the confirmation dialog
                     }
-                    .setNegativeButton("Cancel") { dialog, _ ->
-                        // If canceled, revert the swipe animation
+                    .setNegativeButton(getString(R.string.cancel_button_text)) { dialog, _ ->
+                        // If deletion is canceled, tell the adapter to redraw the item at its original position
                         timerAdapter.notifyItemChanged(position)
-                        dialog.cancel()
+                        dialog.cancel() // Dismiss the dialog
                     }
-                    .show()
+                    .show() // Show the confirmation dialog
             }
         }
     }
 
+    // Called when the activity is being destroyed
     override fun onDestroy() {
         super.onDestroy()
-        // Stop and release MediaPlayer resources
+        // Release MediaPlayer resources to prevent memory leaks
         mediaPlayer?.release()
         mediaPlayer = null
 
         // Cancel any ongoing vibrations
         vibrator?.cancel()
 
-        // Cancel all active CountDownTimers to prevent leaks
+        // Cancel all active CountDownTimers to prevent memory leaks when the activity is destroyed
         timers.forEach { it.countDownTimer?.cancel() }
     }
 }
-

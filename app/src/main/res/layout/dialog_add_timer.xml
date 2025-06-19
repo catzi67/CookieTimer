@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/dialog_background"> <!-- Apply custom background here -->
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/timer_name_label"
+        android:textColor="@color/gray_700"
+        android:textSize="16sp"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/inputTimerName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/timer_name_hint"
+        android:inputType="text"
+        android:singleLine="true"
+        android:padding="12dp"
+        android:background="@drawable/edittext_background"
+        android:textColor="@color/gray_800"
+        android:textColorHint="@color/gray_500"
+        android:layout_marginBottom="16dp"
+        android:autofillHints="name" /> <!-- Added autofillHints attribute -->
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/duration_label"
+        android:textColor="@color/gray_700"
+        android:textSize="16sp"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/inputTimerDuration"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/duration_hint"
+        android:inputType="number"
+        android:padding="12dp"
+        android:background="@drawable/edittext_background"
+        android:textColor="@color/gray_800"
+        android:textColorHint="@color/gray_500"
+        android:autofillHints="number" /> <!-- Added autofillHints attribute here -->
+
+</LinearLayout>

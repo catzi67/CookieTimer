@@ -6,6 +6,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/gradient_background"
+    android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
     <!-- App Title -->
@@ -13,7 +14,7 @@
         android:id="@+id/textViewTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="🍪 CookieTimer 🍪"
+        android:text="@string/app_title"
         android:textSize="32sp"
         android:textStyle="bold"
         android:textColor="@color/gray_800"
@@ -26,7 +27,7 @@
         android:id="@+id/buttonAddTimer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Add New Timer"
+        android:text="@string/add_new_timer_button_text"
         android:textSize="18sp"
         android:textStyle="bold"
         android:textColor="@android:color/white"
@@ -50,5 +51,3 @@
         tools:listitem="@layout/item_timer_card" />
 
 </LinearLayout>
-
-
