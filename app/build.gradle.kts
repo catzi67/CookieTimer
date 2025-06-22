@@ -31,11 +31,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11 // Updated from VERSION_1_8 to VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11 // Updated from VERSION_1_8 to VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11" // Updated from "1.8" to "11"
     }
 }
 
