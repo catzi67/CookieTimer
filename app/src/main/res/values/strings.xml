@@ -1,3 +1,20 @@
 <resources>
     <string name="app_name">CookieTimer</string>
+    <string name="app_title">🍪 CookieTimer 🍪</string>
+    <string name="timer_name_label">Timer Name</string>
+    <string name="timer_name_hint">e.g., Bake Cookies</string>
+    <string name="duration_label">Duration (minutes)</string>
+    <string name="duration_hint">e.g., 10</string>
+    <string name="add_new_timer_dialog_title">Add New Timer</string>
+    <string name="add_button_text">Add</string>
+    <string name="cancel_button_text">Cancel</string>
+    <string name="toast_invalid_input">Please enter a valid name and duration (min 1 minute).</string>
+    <string name="delete_timer_dialog_title">Delete Timer</string>
+    <string name="delete_timer_dialog_message">Are you sure you want to delete this timer?</string>
+    <string name="delete_button_text">Delete</string>
+    <string name="add_new_timer_button_text">Add New Timer</string>
+    <string name="temperature_label">Cooking Temperature (Optional)</string>
+    <string name="temperature_hint">e.g., 180</string>
+    <string name="temperature_display_format">Temp: %1$d°%2$s</string>
+    <string name="swipe_to_delete_hint">Swipe left to delete</string>
 </resources>

@@ -1,17 +1,20 @@
+// app/build.gradle.kts
+
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    // Explicitly apply KSP plugin with a compatible version for Kotlin 1.9.20
+    id("com.google.devtools.ksp") version "1.9.20-1.0.14"
 }
 
 android {
     namespace = "com.catto.cookietimer"
-    compileSdk = 35
+    compileSdk = libs.versions.compileSdk.get().toInt() // Reference compileSdk from libs.versions.toml
 
     defaultConfig {
         applicationId = "com.catto.cookietimer"
-        minSdk = 26
-        targetSdk = 35
+        minSdk = libs.versions.minSdk.get().toInt()     // Reference minSdk from libs.versions.toml
+        targetSdk = libs.versions.targetSdk.get().toInt() // Reference targetSdk from libs.versions.toml
         versionCode = 1
         versionName = "1.0"
 
@@ -28,36 +31,33 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
     kotlinOptions {
-        jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
+        jvmTarget = "1.8"
     }
 }
 
 dependencies {
-
+    // AndroidX Core and AppCompat
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
     implementation(libs.appcompat)
-    implementation(libs.androidx.recyclerview)
-    implementation(libs.recyclerview)
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+
+    // Material Design
     implementation(libs.material)
+
+    // RecyclerView dependency
+    implementation(libs.androidx.recyclerview)
+    implementation(libs.androidx.cardview)
+
+    // Room components
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
 }

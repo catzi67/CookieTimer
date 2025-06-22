@@ -1,3 +1,4 @@
+// --- src/main/java/com/catto/cookietimer/TimerAdapter.kt ---
 package com.catto.cookietimer
 
 import android.view.LayoutInflater
@@ -23,6 +24,7 @@ class TimerAdapter(
         val buttonStart: MaterialButton = itemView.findViewById(R.id.buttonStart)
         val buttonStop: MaterialButton = itemView.findViewById(R.id.buttonStop)
         val buttonReset: MaterialButton = itemView.findViewById(R.id.buttonReset)
+        val temperatureText: TextView = itemView.findViewById(R.id.textViewTemperature) // New: Temperature TextView
     }
 
     // Creates new ViewHolder instances (inflates the card layout)
@@ -41,6 +43,16 @@ class TimerAdapter(
 
         holder.timerName.text = timer.name
         holder.countdownText.text = formatTime(timer.remainingTimeSeconds)
+
+        // New: Display temperature if available
+        timer.temperatureCelsius?.let { temp ->
+            // For now, just display in Celsius. Conversion logic will be added in Phase 2.
+            holder.temperatureText.text = holder.itemView.context.getString(R.string.temperature_display_format, temp.toInt(), "C")
+            holder.temperatureText.visibility = View.VISIBLE
+        } ?: run {
+            holder.temperatureText.visibility = View.GONE // Hide if no temperature is set
+        }
+
 
         // Set button states based on timer status
         holder.buttonStart.isEnabled = !timer.isRunning && !timer.isCompleted

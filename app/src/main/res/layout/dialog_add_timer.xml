@@ -48,4 +48,26 @@
         android:textColorHint="@color/gray_500"
         android:autofillHints="number" /> <!-- Added autofillHints attribute here -->
 
+    <!-- New: Temperature Input Field -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/temperature_label"
+        android:textColor="@color/gray_700"
+        android:textSize="16sp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/inputTemperature"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/temperature_hint"
+        android:inputType="numberDecimal"
+        android:padding="12dp"
+        android:background="@drawable/edittext_background"
+        android:textColor="@color/gray_800"
+        android:textColorHint="@color/gray_500"
+        android:autofillHints="number" />
+
 </LinearLayout>
