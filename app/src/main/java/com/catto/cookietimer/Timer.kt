@@ -19,8 +19,9 @@ data class Timer @JvmOverloads constructor( // Added @JvmOverloads to generate o
     var remainingTimeSeconds: Int = 0, // Added default value
     var isRunning: Boolean = false, // Added default value
     var isCompleted: Boolean = false, // Added default value
-    var temperatureCelsius: Double? = null, // New: Optional cooking temperature in Celsius
-    var originalInputUnit: String? = null, // New: Unit the temperature was originally entered in (e.g., "Celsius")
+    var temperatureCelsius: Double? = null, // Optional cooking temperature in Celsius
+    var originalInputUnit: String? = null, // Unit the temperature was originally entered in (e.g., "Celsius")
+    var lastStartedTimestamp: Long? = null, // New: Timestamp when the timer was last started (System.currentTimeMillis())
     // @Ignore tells Room to not persist this field in the database.
     // CountDownTimer is a UI-related object and should not be saved.
     @Ignore @Transient var countDownTimer: CountDownTimer? = null

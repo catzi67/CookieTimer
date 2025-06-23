@@ -4,17 +4,23 @@
 
     <!-- Permission for vibration -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Permission required for Foreground Services (API 28+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Permission needed for POST_NOTIFICATIONS (API 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
 
     <application
         android:allowBackup="false"
+        tools:ignore="GoogleAppIndexingWarning"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.CookieTimer"
-        tools:targetApi="31">
+        android:theme="@style/Theme.CookieTimer"> <!-- Removed tools:targetApi="31" here -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -23,6 +29,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Declare SettingsActivity -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_title" />
+
+        <!-- Declare TimerService with full package name -->
+        <service
+            android:name="com.catto.cookietimer.TimerService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="shortService"
+            tools:targetApi="q" />
+
     </application>
 
 </manifest>

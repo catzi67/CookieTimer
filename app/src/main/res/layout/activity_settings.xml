@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/gradient_background"
+    android:fitsSystemWindows="true"
+    android:padding="16dp"
+    tools:context=".SettingsActivity">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/settings_title"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@color/gray_800"
+        android:gravity="center"
+        android:layout_marginBottom="24dp"
+        android:paddingTop="16dp"/>
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp"
+        app:cardBackgroundColor="@android:color/white"
+        android:layout_marginBottom="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/temperature_unit_setting_label"
+                android:textColor="@color/gray_700"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp"/>
+
+            <RadioGroup
+                android:id="@+id/radioGroupTemperatureUnit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <RadioButton
+                    android:id="@+id/radioCelsius"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/temp_unit_celsius"
+                    android:textSize="16sp"
+                    android:textColor="@color/gray_800"
+                    android:paddingVertical="8dp"/>
+
+                <RadioButton
+                    android:id="@+id/radioFahrenheit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/temp_unit_fahrenheit"
+                    android:textSize="16sp"
+                    android:textColor="@color/gray_800"
+                    android:paddingVertical="8dp"/>
+
+                <RadioButton
+                    android:id="@+id/radioGasMark"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/temp_unit_gas_mark"
+                    android:textSize="16sp"
+                    android:textColor="@color/gray_800"
+                    android:paddingVertical="8dp"/>
+
+            </RadioGroup>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- You can add more setting cards here -->
+
+</LinearLayout>

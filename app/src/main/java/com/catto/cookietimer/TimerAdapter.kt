@@ -14,7 +14,8 @@ class TimerAdapter(
     private val timers: List<Timer>,
     private val onStartClick: (Long) -> Unit, // Callback for Start button
     private val onStopClick: (Long) -> Unit,  // Callback for Stop button
-    private val onResetClick: (Long) -> Unit  // Callback for Reset button
+    private val onResetClick: (Long) -> Unit,  // Callback for Reset button
+    var currentTemperatureUnit: String // New: Current temperature unit from preferences
 ) : RecyclerView.Adapter<TimerAdapter.TimerViewHolder>() {
 
     // ViewHolder: Holds the views for a single timer card
@@ -44,10 +45,10 @@ class TimerAdapter(
         holder.timerName.text = timer.name
         holder.countdownText.text = formatTime(timer.remainingTimeSeconds)
 
-        // New: Display temperature if available
-        timer.temperatureCelsius?.let { temp ->
-            // For now, just display in Celsius. Conversion logic will be added in Phase 2.
-            holder.temperatureText.text = holder.itemView.context.getString(R.string.temperature_display_format, temp.toInt(), "C")
+        // New: Display temperature if available, using the currentTemperatureUnit
+        timer.temperatureCelsius?.let { tempCelsius ->
+            val (convertedTemp, unitSymbol) = convertTemperature(tempCelsius, currentTemperatureUnit)
+            holder.temperatureText.text = holder.itemView.context.getString(R.string.temperature_display_format, convertedTemp.toInt(), unitSymbol)
             holder.temperatureText.visibility = View.VISIBLE
         } ?: run {
             holder.temperatureText.visibility = View.GONE // Hide if no temperature is set
@@ -78,5 +79,32 @@ class TimerAdapter(
         val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds.toLong())
         val seconds = totalSeconds - TimeUnit.MINUTES.toSeconds(minutes).toInt()
         return String.format("%02d:%02d", minutes, seconds)
+    }
+
+    // Helper function to convert temperature
+    private fun convertTemperature(tempCelsius: Double, targetUnit: String): Pair<Double, String> {
+        return when (targetUnit) {
+            "Fahrenheit" -> {
+                val fahrenheit = (tempCelsius * 9 / 5) + 32
+                Pair(fahrenheit, "F")
+            }
+            "GasMark" -> {
+                val gasMark = when {
+                    tempCelsius < 135 -> 0.25
+                    tempCelsius < 150 -> 1.0
+                    tempCelsius < 165 -> 2.0
+                    tempCelsius < 175 -> 3.0
+                    tempCelsius < 190 -> 4.0
+                    tempCelsius < 200 -> 5.0
+                    tempCelsius < 220 -> 6.0
+                    tempCelsius < 230 -> 7.0
+                    tempCelsius < 240 -> 8.0
+                    tempCelsius < 260 -> 9.0
+                    else -> 10.0 // Gas Mark 10 or higher
+                }
+                Pair(gasMark, "GM")
+            }
+            else -> Pair(tempCelsius, "C") // Default to Celsius
+        }
     }
 }

@@ -31,6 +31,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import android.util.Log // Import for logging
+import android.content.Intent // Import for Intent
+import androidx.core.app.ActivityCompat // For requesting permissions
+import com.catto.cookietimer.TimerService // Added import for TimerService
+import com.catto.cookietimer.TimerAdapter // Added explicit import for TimerAdapter
+
 
 // MainActivity: Handles the main UI, manages the list of timers, and interacts with the adapter.
 class MainActivity : AppCompatActivity() {
@@ -43,13 +48,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var database: AppDatabase
     private lateinit var timerDao: TimerDao
 
-    // MediaPlayer for the alarm sound
-    private var mediaPlayer: MediaPlayer? = null
-    // Vibrator for haptic feedback
-    private var vibrator: Vibrator? = null
+    // MediaPlayer and Vibrator are now managed by TimerService, no longer needed in MainActivity
+    // private var mediaPlayer: MediaPlayer? = null
+    // private var vibrator: Vibrator? = null
+
+    private lateinit var sharedPreferencesManager: SharedPreferencesManager // New: SharedPreferences Manager
 
     companion object {
         private const val TAG = "CookieTimerApp" // Tag for logging
+        private const val REQUEST_CODE_POST_NOTIFICATIONS = 1001 // Request code for notification permission
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,53 +64,103 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_main) // Set the main activity layout
 
+        // Request POST_NOTIFICATIONS permission at runtime if not granted (for API 33+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQUEST_CODE_POST_NOTIFICATIONS)
+            }
+        }
+
+
         // Initialize Room Database and DAO
         database = AppDatabase.getDatabase(this)
         timerDao = database.timerDao()
         Log.d(TAG, "Database and DAO initialized.")
 
+        // Initialize SharedPreferencesManager
+        sharedPreferencesManager = SharedPreferencesManager(this)
+
+
         // Initialize MediaPlayer and Vibrator
-        mediaPlayer = MediaPlayer.create(this, R.raw.alarm_sound) // Ensure you have alarm_sound.mp3 in res/raw
-        vibrator = getSystemService(Vibrator::class.java)
+        // mediaPlayer = MediaPlayer.create(this, R.raw.alarm_sound)
+        // vibrator = getSystemService(Vibrator::class.java)
 
         // Setup RecyclerView
         recyclerView = findViewById(R.id.recyclerViewTimers)
         recyclerView.layoutManager = LinearLayoutManager(this) // Linear list layout
 
         // Initialize adapter with the list of timers and callbacks for actions
+        // Pass the current temperature unit from preferences to the adapter
         timerAdapter = TimerAdapter(timers,
             onStartClick = { timerId -> startTimer(timerId) },
             onStopClick = { timerId -> stopTimer(timerId) },
-            onResetClick = { timerId -> resetTimer(timerId) }
+            onResetClick = { timerId -> resetTimer(timerId) },
+            currentTemperatureUnit = sharedPreferencesManager.getTemperatureUnit() // New parameter
         )
         recyclerView.adapter = timerAdapter
 
         // Observe timers from the database
-        // Use lifecycleScope or viewModelScope in a real app, but CoroutineScope(Dispatchers.Main) for simplicity here
         CoroutineScope(Dispatchers.Main).launch {
             timerDao.getAllTimers().collectLatest { loadedTimers ->
                 Log.d(TAG, "Timers loaded from DB: ${loadedTimers.size} timers.")
-                // Stop any running timers before updating the list
-                timers.forEach { it.countDownTimer?.cancel() }
+                // Stop any CountDownTimers associated with old UI objects
+                timers.forEach { it.countDownTimer?.cancel() } // Cancel old timers associated with old objects
                 timers.clear()
-                timers.addAll(loadedTimers)
-                timerAdapter.notifyDataSetChanged()
-                // Re-start timers that were previously running (if needed, or re-think this logic)
-                // For simplicity, timers are not automatically restarted here.
-                // You would need a more sophisticated state management for running timers across app restarts.
+                timers.addAll(loadedTimers) // Update local list from DB
+                timerAdapter.notifyDataSetChanged() // Notify UI of changes
+
+                // Logic to start/stop the service based on loaded timers
+                if (loadedTimers.any { it.isRunning }) {
+                    startTimerService()
+                } else {
+                    stopTimerService()
+                }
             }
         }
 
 
         // Set up the "Add Timer" button click listener
         findViewById<MaterialButton>(R.id.buttonAddTimer).setOnClickListener {
-            showAddTimerDialog() // Show dialog to add new timer
+            showAddTimerDialog()
         }
 
-        // Attach ItemTouchHelper for swipe-to-delete functionality
-        val itemTouchHelper = ItemTouchHelper(SwipeToDeleteCallback())
-        itemTouchHelper.attachToRecyclerView(recyclerView)
+        // Set up the Settings button click listener
+        findViewById<MaterialButton>(R.id.buttonSettings).setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
+            startActivity(intent)
+        }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // Update the adapter with the latest temperature unit preference
+        timerAdapter.currentTemperatureUnit = sharedPreferencesManager.getTemperatureUnit()
+        timerAdapter.notifyDataSetChanged() // Refresh all items to apply new unit
+        Log.d(TAG, "MainActivity onResume: Updated adapter with temperature unit: ${sharedPreferencesManager.getTemperatureUnit()}")
+    }
+
+    // New: Functions to start and stop the TimerService
+    private fun startTimerService() {
+        val serviceIntent = Intent(this, TimerService::class.java).apply {
+            action = TimerService.ACTION_START_TIMER_SERVICE
+        }
+        // For Android O (API 26) and above, use startForegroundService
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+        Log.d(TAG, "Attempted to start TimerService.")
+    }
+
+    private fun stopTimerService() {
+        val serviceIntent = Intent(this, TimerService::class.java).apply {
+            action = TimerService.ACTION_STOP_TIMER_SERVICE
+        }
+        stopService(serviceIntent)
+        Log.d(TAG, "Attempted to stop TimerService.")
+    }
+
 
     // Function to show a dialog for adding a new timer
     private fun showAddTimerDialog() {
@@ -115,17 +172,16 @@ class MainActivity : AppCompatActivity() {
 
         val inputName = dialogView.findViewById<EditText>(R.id.inputTimerName)
         val inputDuration = dialogView.findViewById<EditText>(R.id.inputTimerDuration)
-        val inputTemperature = dialogView.findViewById<EditText>(R.id.inputTemperature) // New: Temperature input
+        val inputTemperature = dialogView.findViewById<EditText>(R.id.inputTemperature)
 
         inputDuration.setText("1")
-        // No default for temperature, it's optional
 
         builder.setPositiveButton(getString(R.string.add_button_text)) { dialog, _ ->
             val name = inputName.text.toString().trim()
             val durationText = inputDuration.text.toString()
             val durationMinutes = durationText.toIntOrNull()
-            val temperatureText = inputTemperature.text.toString().trim() // New: Get temperature text
-            val temperatureCelsius: Double? = temperatureText.toDoubleOrNull() // New: Convert to Double, nullable
+            val temperatureText = inputTemperature.text.toString().trim()
+            val temperatureCelsius: Double? = temperatureText.toDoubleOrNull()
 
             if (name.isNotEmpty() && durationMinutes != null && durationMinutes > 0) {
                 val newTimer = Timer(
@@ -134,17 +190,18 @@ class MainActivity : AppCompatActivity() {
                     remainingTimeSeconds = durationMinutes * 60,
                     isRunning = false,
                     isCompleted = false,
-                    temperatureCelsius = temperatureCelsius, // New: Add temperature
-                    originalInputUnit = "Celsius" // New: Assume Celsius for input unit initially
+                    temperatureCelsius = temperatureCelsius,
+                    originalInputUnit = "Celsius" // Assume Celsius for input unit initially
                 )
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         val newId = timerDao.insertTimer(newTimer)
                         Log.d(TAG, "Timer inserted into DB with ID: $newId")
-                        // UI update handled by Flow observer
+                        // After inserting, start the service if it's not already running
+                        // The service will then handle actual countdown initiation when it receives update from DB Flow
+                        startTimerService()
                     } catch (e: Exception) {
                         Log.e(TAG, "Error inserting timer into DB: ${e.message}", e)
-                        // Show a user-friendly message if insertion fails (e.g., Toast)
                         CoroutineScope(Dispatchers.Main).launch {
                             Toast.makeText(this@MainActivity, "Failed to add timer: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                         }
@@ -161,122 +218,48 @@ class MainActivity : AppCompatActivity() {
         builder.show()
     }
 
-    // Starts a specific timer by its ID
+    // Starts a specific timer by its ID. Now sends an Intent to the TimerService.
     private fun startTimer(timerId: Long) {
-        val index = timers.indexOfFirst { it.id == timerId }
-        if (index != -1) {
-            val timer = timers[index]
-            if (!timer.isRunning) {
-                val timeToStart = if (timer.isCompleted) timer.initialDurationSeconds else timer.remainingTimeSeconds
-
-                val updatedTimer = timer.copy(
-                    remainingTimeSeconds = timeToStart,
-                    isRunning = true,
-                    isCompleted = false
-                )
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        timerDao.updateTimer(updatedTimer)
-                        Log.d(TAG, "Timer with ID ${timer.id} updated to running state in DB.")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error updating timer ${timer.id} in DB (start): ${e.message}", e)
-                    }
-                }
-
-                timer.countDownTimer = object : CountDownTimer(timeToStart * 1000L, 1000) {
-                    override fun onTick(millisUntilFinished: Long) {
-                        timer.remainingTimeSeconds = TimeUnit.MILLISECONDS.toSeconds(millisUntilFinished).toInt()
-                        timerAdapter.notifyItemChanged(index)
-                    }
-
-                    override fun onFinish() {
-                        timer.remainingTimeSeconds = 0
-                        timer.isRunning = false
-                        timer.isCompleted = true
-                        timer.countDownTimer = null
-                        timerAdapter.notifyItemChanged(index)
-                        playAlarmAndVibrate()
-
-                        CoroutineScope(Dispatchers.IO).launch {
-                            try {
-                                timerDao.updateTimer(timer.copy(isRunning = false, isCompleted = true, remainingTimeSeconds = 0))
-                                Log.d(TAG, "Timer with ID ${timer.id} updated to completed state in DB.")
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error updating timer ${timer.id} in DB (finish): ${e.message}", e)
-                            }
-                        }
-                    }
-                }.start()
-            }
+        val serviceIntent = Intent(this, TimerService::class.java).apply {
+            action = TimerService.ACTION_START_TIMER
+            putExtra(TimerService.EXTRA_TIMER_ID, timerId)
         }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+        Log.d(TAG, "Sent start intent for Timer ID: $timerId to TimerService.")
+        // No direct CountDownTimer in MainActivity anymore for active timers
+        // UI will update via DB Flow
     }
 
-    // Stops a specific timer by its ID
+    // Stops a specific timer by its ID. Now sends an Intent to the TimerService.
     private fun stopTimer(timerId: Long) {
-        val index = timers.indexOfFirst { it.id == timerId }
-        if (index != -1) {
-            val timer = timers[index]
-            if (timer.isRunning) {
-                timer.countDownTimer?.cancel()
-                timer.isRunning = false
-                timer.countDownTimer = null
-                timerAdapter.notifyItemChanged(index)
-
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        timerDao.updateTimer(timer.copy(isRunning = false))
-                        Log.d(TAG, "Timer with ID ${timer.id} updated to stopped state in DB.")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error updating timer ${timer.id} in DB (stop): ${e.message}", e)
-                    }
-                }
-            }
+        val serviceIntent = Intent(this, TimerService::class.java).apply {
+            action = TimerService.ACTION_STOP_TIMER
+            putExtra(TimerService.EXTRA_TIMER_ID, timerId)
         }
+        // Use startService to send command to running service
+        startService(serviceIntent)
+        Log.d(TAG, "Sent stop intent for Timer ID: $timerId to TimerService.")
+        // UI will update via DB Flow
     }
 
-    // Resets a specific timer by its ID
+    // Resets a specific timer by its ID. Now sends an Intent to the TimerService.
     private fun resetTimer(timerId: Long) {
-        val index = timers.indexOfFirst { it.id == timerId }
-        if (index != -1) {
-            val timer = timers[index]
-            stopTimer(timerId)
-            timer.remainingTimeSeconds = timer.initialDurationSeconds
-            timer.isCompleted = false
-            timerAdapter.notifyItemChanged(index)
-
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    timerDao.updateTimer(timer.copy(remainingTimeSeconds = timer.initialDurationSeconds, isCompleted = false))
-                    Log.d(TAG, "Timer with ID ${timer.id} updated to reset state in DB.")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error updating timer ${timer.id} in DB (reset): ${e.message}", e)
-                }
-            }
+        val serviceIntent = Intent(this, TimerService::class.java).apply {
+            action = TimerService.ACTION_RESET_TIMER
+            putExtra(TimerService.EXTRA_TIMER_ID, timerId)
         }
+        // Use startService to send command to running service
+        startService(serviceIntent)
+        Log.d(TAG, "Sent reset intent for Timer ID: $timerId to TimerService.")
+        // UI will update via DB Flow
     }
 
-    // Plays the alarm sound and vibrates the device
-    private fun playAlarmAndVibrate() {
-        mediaPlayer?.apply {
-            if (isPlaying) {
-                stop()
-            }
-            seekTo(0)
-            start()
-        }
-
-        vibrator?.apply {
-            if (hasVibrator()) {
-                val pattern = longArrayOf(0, 500, 200, 500)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    vibrate(VibrationEffect.createWaveform(pattern, -1))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrate(pattern, -1)
-                }
-            }
-        }
-    }
+    // playAlarmAndVibrate is now handled entirely within TimerService, so remove it from MainActivity.
+    // private fun playAlarmAndVibrate() { ... }
 
     // Callback class for swipe-to-delete functionality for RecyclerView items
     inner class SwipeToDeleteCallback : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
@@ -296,13 +279,13 @@ class MainActivity : AppCompatActivity() {
                     .setMessage(getString(R.string.delete_timer_dialog_message))
                     .setPositiveButton(getString(R.string.delete_button_text)) { dialog, _ ->
                         val timerToDelete = timers[position]
-                        stopTimer(timerToDelete.id)
-
+                        // Instead of calling stopTimer directly, delete it from DB.
+                        // The TimerService will get the update via Flow and stop its internal timer.
                         CoroutineScope(Dispatchers.IO).launch {
                             try {
                                 timerDao.deleteTimer(timerToDelete)
                                 Log.d(TAG, "Timer with ID ${timerToDelete.id} deleted from DB.")
-                                // UI update handled by Flow observer
+                                // The service will handle stopping itself if no more timers are running.
                             } catch (e: Exception) {
                                 Log.e(TAG, "Error deleting timer ${timerToDelete.id} from DB: ${e.message}", e)
                                 CoroutineScope(Dispatchers.Main).launch {
@@ -323,10 +306,27 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        mediaPlayer?.release()
-        mediaPlayer = null
-        vibrator?.cancel()
-        timers.forEach { it.countDownTimer?.cancel() }
+        // MediaPlayer and Vibrator are now in service, so no release here.
+        // mediaPlayer?.release()
+        // mediaPlayer = null
+        // vibrator?.cancel()
+        timers.forEach { it.countDownTimer?.cancel() } // Ensure all CountDownTimers are cancelled
+        // Service's lifecycle is now independent of MainActivity's onDestroy, stop only if truly done
+        // stopTimerService() // No longer unconditionally stop service on Activity onDestroy
         Log.d(TAG, "MainActivity onDestroy called.")
+    }
+
+    // Handle permission request results
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_POST_NOTIFICATIONS) {
+            if ((grantResults.isNotEmpty() && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED)) {
+                Log.d(TAG, "POST_NOTIFICATIONS permission granted.")
+                // You can optionally restart service or update UI if needed
+            } else {
+                Log.w(TAG, "POST_NOTIFICATIONS permission denied.")
+                Toast.makeText(this, getString(R.string.notification_permission_denied), Toast.LENGTH_LONG).show()
+            }
+        }
     }
 }

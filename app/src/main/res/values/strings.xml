@@ -17,4 +17,24 @@
     <string name="temperature_hint">e.g., 180</string>
     <string name="temperature_display_format">Temp: %1$d°%2$s</string>
     <string name="swipe_to_delete_hint">Swipe left to delete</string>
+
+    <!-- New Strings for Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="temperature_unit_setting_label">Temperature Unit</string>
+    <string name="temp_unit_celsius">Celsius (°C)</string>
+    <string name="temp_unit_fahrenheit">Fahrenheit (°F)</string>
+    <string name="temp_unit_gas_mark">Gas Mark</string>
+    <string name="settings_button_description">Open settings</string>
+
+    <!-- New Strings for Service Notifications -->
+    <string name="running_timers_notification_title">CookieTimer Active</string>
+    <string name="running_timers_notification_content">Timers are running in the background.</string> <!-- Added this string explicitly -->
+    <plurals name="running_timers_count">
+        <item quantity="one">%d timer running</item>
+        <item quantity="other">%d timers running</item>
+    </plurals>
+    <string name="no_timers_running_notification_content">No timers currently active.</string>
+    <string name="timer_alarm_notification_title">%1$s Timer Finished!</string>
+    <string name="timer_alarm_notification_content">Your cooking timer has completed.</string>
+    <string name="notification_permission_denied">Notification permission denied. Timer alarms may not be shown.</string>
 </resources>

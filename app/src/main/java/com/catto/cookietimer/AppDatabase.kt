@@ -1,4 +1,4 @@
-// --- src/main/java/com/catto/cookietimer/AppDatabase.kt ---
+// --- src/main/java/com.catto/cookietimer/AppDatabase.kt ---
 package com.catto.cookietimer
 
 import android.content.Context
@@ -10,7 +10,7 @@ import androidx.room.RoomDatabase
 // entities: Lists all the Room Entities (tables) in this database.
 // version: Database version. Increment this when you change the schema (add/remove tables/columns).
 // exportSchema: Set to false for simple apps to avoid creating schema export folders.
-@Database(entities = [Timer::class], version = 3, exportSchema = false) // Version incremented to 3
+@Database(entities = [Timer::class], version = 4, exportSchema = false) // Version incremented to 4 due to Timer entity changes
 abstract class AppDatabase : RoomDatabase() {
 
     // Abstract method to get the DAO. Room generates the implementation.
@@ -30,10 +30,9 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "cookie_timer_db" // Name of your database file
                 )
-                    // Corrected: Reverting to parameterless fallbackToDestructiveMigration()
-                    // This is generally the most stable way to allow Room to recreate the database
-                    // destructively on schema changes when no explicit migrations are provided.
-                    // This might still show a deprecation warning, but is functionally robust.
+                    // Reverting to the parameterless fallbackToDestructiveMigration() as it's typically functionally stable for development
+                    // despite deprecation warnings in newer IDEs. This allows Room to recreate the database destructively
+                    // on schema changes (like new columns in Timer entity) when no explicit migrations are provided.
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
