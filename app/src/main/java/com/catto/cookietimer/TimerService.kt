@@ -17,8 +17,10 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.resume
 
 // TimerService: A Foreground Service to run timers in the background.
 class TimerService : Service() {
@@ -26,8 +28,9 @@ class TimerService : Service() {
     private lateinit var notificationHelper: NotificationHelper
     private lateinit var database: AppDatabase
     private lateinit var timerDao: TimerDao
-    private var mediaPlayer: MediaPlayer? = null
     private var vibrator: Vibrator? = null
+    // MediaPlayer is now managed per-alarm, not as a long-lived service property.
+    // private var mediaPlayer: MediaPlayer? = null
 
     private lateinit var notificationManager: NotificationManager
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
@@ -52,8 +55,6 @@ class TimerService : Service() {
         notificationHelper = NotificationHelper(this)
         database = AppDatabase.getDatabase(this)
         timerDao = database.timerDao()
-        mediaPlayer = MediaPlayer.create(this, R.raw.alarm_sound)?.also { it.isLooping = false }
-        // Updated to use non-deprecated method for getting system services
         vibrator = getSystemService(Vibrator::class.java)
         notificationManager = getSystemService(NotificationManager::class.java)
         Log.d(TAG, "TimerService onCreate - Initialized.")
@@ -90,7 +91,7 @@ class TimerService : Service() {
                 }
                 updateForegroundNotificationContent()
 
-                if (runningTimerIdsFromDb.isEmpty()) {
+                if (loadedTimers.none { it.isRunning }) {
                     Log.d(TAG, "No running timers in DB after reconciliation. Stopping service.")
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
@@ -157,7 +158,12 @@ class TimerService : Service() {
                     serviceScope.launch {
                         timerDao.getAllTimers().firstOrNull()?.find { it.id == timerId }?.let {
                             stopCountdownForTimer(it.id)
-                            val updatedTimer = it.copy(remainingTimeSeconds = it.initialDurationSeconds, isRunning = false, isCompleted = false, lastStartedTimestamp = null)
+                            val updatedTimer = it.copy(
+                                remainingTimeSeconds = it.initialDurationSeconds,
+                                isRunning = false,
+                                isCompleted = false,
+                                lastStartedTimestamp = null
+                            )
                             timerDao.updateTimer(updatedTimer)
                             Log.d(TAG, "Sent reset command for timer ${it.name} (ID: ${it.id}) to DB.")
                         }
@@ -195,17 +201,22 @@ class TimerService : Service() {
 
                 override fun onFinish() {
                     serviceScope.launch {
-                        Log.d(TAG, "Timer ${timer.name} (ID: ${timer.id}) finished. Updating DB.")
-                        val updatedTimer = timer.copy(remainingTimeSeconds = 0, isRunning = false, isCompleted = true)
-                        timerDao.updateTimer(updatedTimer)
+                        Log.d(TAG, "Timer ${timer.name} (ID: ${timer.id}) finished.")
 
-                        activeCountDownTimers.remove(timer.id)
-
-                        playAlarmAndVibrate()
                         notificationHelper.showNotification(
                             NotificationHelper.TIMER_ALARM_NOTIFICATION_ID + timer.id.toInt(),
                             notificationHelper.buildTimerAlarmNotification(timer.name, timer.id)
                         )
+                        activeCountDownTimers.remove(timer.id)
+
+                        // Play sounds and wait for completion
+                        playVibration()
+                        playAlarmSoundAndWait()
+
+                        // AFTER sound is done, update the DB. This will trigger the service stop check.
+                        Log.d(TAG, "Alarm finished. Updating DB for timer ${timer.name}")
+                        val updatedTimer = timer.copy(remainingTimeSeconds = 0, isRunning = false, isCompleted = true)
+                        timerDao.updateTimer(updatedTimer)
                     }
                 }
             }
@@ -228,18 +239,54 @@ class TimerService : Service() {
         serviceScope.launch { updateForegroundNotificationContent() }
     }
 
-    private fun playAlarmAndVibrate() {
-        mediaPlayer?.apply {
-            if (isPlaying) stop()
-            seekTo(0)
-            start()
-        }
+    private fun playVibration() {
         vibrator?.apply {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 200, 500), -1))
             } else {
                 @Suppress("DEPRECATION")
                 vibrate(longArrayOf(0, 500, 200, 500), -1)
+            }
+        }
+    }
+
+    private suspend fun playAlarmSoundAndWait() = suspendCancellableCoroutine<Unit> { continuation ->
+        val mediaPlayer = MediaPlayer.create(this@TimerService, R.raw.alarm_sound)?.apply {
+            isLooping = false
+            setOnCompletionListener { mp ->
+                Log.d(TAG, "MediaPlayer completed.")
+                mp.release()
+                if (continuation.isActive) {
+                    continuation.resume(Unit)
+                }
+            }
+            setOnErrorListener { _, _, _ ->
+                Log.e(TAG, "MediaPlayer error.")
+                if (continuation.isActive) {
+                    continuation.resume(Unit)
+                }
+                true // Error was handled
+            }
+        }
+
+        if (mediaPlayer == null) {
+            Log.e(TAG, "MediaPlayer failed to create.")
+            continuation.resume(Unit)
+            return@suspendCancellableCoroutine
+        }
+
+        continuation.invokeOnCancellation {
+            mediaPlayer.release()
+        }
+
+        try {
+            mediaPlayer.start()
+            Log.d(TAG, "MediaPlayer started.")
+        } catch (e: Exception) {
+            Log.e(TAG, "MediaPlayer start failed.", e)
+            mediaPlayer.release()
+            if (continuation.isActive) {
+                continuation.resume(Unit)
             }
         }
     }
@@ -258,8 +305,7 @@ class TimerService : Service() {
         super.onDestroy()
         stopAllActiveTimers()
         serviceScope.cancel()
-        mediaPlayer?.release()
-        mediaPlayer = null
+        // No longer need to release the service-level media player
         vibrator?.cancel()
         Log.d(TAG, "TimerService onDestroy")
     }

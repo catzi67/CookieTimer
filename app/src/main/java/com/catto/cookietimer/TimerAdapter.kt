@@ -14,7 +14,6 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 // TimerAdapter: Binds Timer data to individual card views in the RecyclerView.
-// Updated to use ListAdapter with payloads for efficient partial updates.
 class TimerAdapter(
     private val onStartClick: (Long) -> Unit, // Callback for Start button
     private val onStopClick: (Long) -> Unit,  // Callback for Stop button
@@ -32,36 +31,28 @@ class TimerAdapter(
         val temperatureText: TextView = itemView.findViewById(R.id.textViewTemperature)
     }
 
-    // Creates new ViewHolder instances (inflates the card layout)
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TimerViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_timer_card, parent, false)
         return TimerViewHolder(view)
     }
 
-    // This onBindViewHolder is for partial updates (payloads).
-    // It's called when DiffUtil determines that only specific parts of the item have changed.
     override fun onBindViewHolder(holder: TimerViewHolder, position: Int, payloads: MutableList<Any>) {
         if (payloads.isEmpty()) {
-            // If there are no payloads, this is a full update, so we call the standard onBindViewHolder.
             super.onBindViewHolder(holder, position, payloads)
         } else {
-            // If there are payloads, we handle the partial update.
             val bundle = payloads[0] as Bundle
             for (key in bundle.keySet()) {
                 if (key == "PAYLOAD_TIME_UPDATE") {
-                    // If only the time changed, just update the countdown text.
                     holder.countdownText.text = formatTime(bundle.getInt(key))
                 }
             }
         }
     }
 
-    // This onBindViewHolder is for full updates (when the whole item needs to be redrawn).
     override fun onBindViewHolder(holder: TimerViewHolder, position: Int) {
         val timer = getItem(position)
 
-        // Bind all data for a full redraw
         holder.timerName.text = timer.name
         holder.countdownText.text = formatTime(timer.remainingTimeSeconds)
 
@@ -78,7 +69,6 @@ class TimerAdapter(
         holder.buttonReset.isEnabled = true
 
         if (timer.isCompleted) {
-            // Use string resource to fix hardcoded string warning
             holder.countdownText.text = holder.itemView.context.getString(R.string.timer_completed_text)
             holder.countdownText.setTextColor(holder.itemView.context.getColor(R.color.red_700))
         } else {
@@ -93,7 +83,6 @@ class TimerAdapter(
     private fun formatTime(totalSeconds: Int): String {
         val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds.toLong())
         val seconds = totalSeconds - TimeUnit.MINUTES.toSeconds(minutes).toInt()
-        // Specify locale to fix warning
         return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
     }
 
@@ -121,23 +110,26 @@ class TimerAdapter(
             }
 
             override fun areContentsTheSame(oldItem: Timer, newItem: Timer): Boolean {
-                // This now checks all fields. If false, getChangePayload will be called.
                 return oldItem == newItem
             }
 
             override fun getChangePayload(oldItem: Timer, newItem: Timer): Any? {
-                // This is called if areContentsTheSame is false.
-                // We check if only the time has changed and create a "payload" for it.
-                val diffBundle = Bundle()
-                if (newItem.remainingTimeSeconds != oldItem.remainingTimeSeconds) {
-                    diffBundle.putInt("PAYLOAD_TIME_UPDATE", newItem.remainingTimeSeconds)
+                // If the main state of the timer has changed, we need a full rebind.
+                if (oldItem.name != newItem.name ||
+                    oldItem.isRunning != newItem.isRunning ||
+                    oldItem.isCompleted != newItem.isCompleted ||
+                    oldItem.temperatureCelsius != newItem.temperatureCelsius) {
+                    return null // Return null for a full rebind
                 }
 
-                // If any other property changed, we don't add to the bundle,
-                // which will trigger a full re-bind. This part is implicitly handled
-                // by returning null if the bundle is empty.
+                // If only the time has changed, create a payload for a partial update.
+                if (newItem.remainingTimeSeconds != oldItem.remainingTimeSeconds) {
+                    val diffBundle = Bundle()
+                    diffBundle.putInt("PAYLOAD_TIME_UPDATE", newItem.remainingTimeSeconds)
+                    return diffBundle
+                }
 
-                return if (diffBundle.size() == 0) null else diffBundle
+                return null
             }
         }
     }
