@@ -5,18 +5,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import java.util.concurrent.TimeUnit
 
 // TimerAdapter: Binds Timer data to individual card views in the RecyclerView.
+// Updated to use ListAdapter for better performance and with an internal DiffCallback.
 class TimerAdapter(
-    private val timers: List<Timer>,
     private val onStartClick: (Long) -> Unit, // Callback for Start button
     private val onStopClick: (Long) -> Unit,  // Callback for Stop button
     private val onResetClick: (Long) -> Unit,  // Callback for Reset button
-    var currentTemperatureUnit: String // New: Current temperature unit from preferences
-) : RecyclerView.Adapter<TimerAdapter.TimerViewHolder>() {
+    var currentTemperatureUnit: String // Current temperature unit from preferences
+) : ListAdapter<Timer, TimerAdapter.TimerViewHolder>(DiffCallback) {
 
     // ViewHolder: Holds the views for a single timer card
     class TimerViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -25,56 +27,52 @@ class TimerAdapter(
         val buttonStart: MaterialButton = itemView.findViewById(R.id.buttonStart)
         val buttonStop: MaterialButton = itemView.findViewById(R.id.buttonStop)
         val buttonReset: MaterialButton = itemView.findViewById(R.id.buttonReset)
-        val temperatureText: TextView = itemView.findViewById(R.id.textViewTemperature) // New: Temperature TextView
+        val temperatureText: TextView = itemView.findViewById(R.id.textViewTemperature)
     }
 
     // Creates new ViewHolder instances (inflates the card layout)
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TimerViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_timer_card, parent, false) // Inflate the timer card layout
+            .inflate(R.layout.item_timer_card, parent, false)
         return TimerViewHolder(view)
     }
 
-    // Returns the total number of items in the list
-    override fun getItemCount(): Int = timers.size
-
     // Binds data from a Timer object to the views in a ViewHolder
     override fun onBindViewHolder(holder: TimerViewHolder, position: Int) {
-        val timer = timers[position]
+        val timer = getItem(position)
 
         holder.timerName.text = timer.name
         holder.countdownText.text = formatTime(timer.remainingTimeSeconds)
 
-        // New: Display temperature if available, using the currentTemperatureUnit
+        // Display temperature if available
         timer.temperatureCelsius?.let { tempCelsius ->
             val (convertedTemp, unitSymbol) = convertTemperature(tempCelsius, currentTemperatureUnit)
             holder.temperatureText.text = holder.itemView.context.getString(R.string.temperature_display_format, convertedTemp.toInt(), unitSymbol)
             holder.temperatureText.visibility = View.VISIBLE
         } ?: run {
-            holder.temperatureText.visibility = View.GONE // Hide if no temperature is set
+            holder.temperatureText.visibility = View.GONE
         }
 
-
-        // Set button states based on timer status
+        // Set button states
         holder.buttonStart.isEnabled = !timer.isRunning && !timer.isCompleted
         holder.buttonStop.isEnabled = timer.isRunning
-        holder.buttonReset.isEnabled = true // Always enabled to allow resetting even if stopped/completed
+        holder.buttonReset.isEnabled = true
 
-        // Update countdown text color if completed
+        // Update countdown text color
         if (timer.isCompleted) {
             holder.countdownText.text = "TIME'S UP!"
-            holder.countdownText.setTextColor(holder.itemView.context.getColor(R.color.red_700)) // Use a color from colors.xml
+            holder.countdownText.setTextColor(holder.itemView.context.getColor(R.color.red_700))
         } else {
-            holder.countdownText.setTextColor(holder.itemView.context.getColor(R.color.blue_600)) // Restore default color
+            holder.countdownText.setTextColor(holder.itemView.context.getColor(R.color.blue_600))
         }
 
-        // Set click listeners for the buttons
+        // Set click listeners
         holder.buttonStart.setOnClickListener { onStartClick(timer.id) }
         holder.buttonStop.setOnClickListener { onStopClick(timer.id) }
         holder.buttonReset.setOnClickListener { onResetClick(timer.id) }
     }
 
-    // Helper function to format time (seconds to MM:SS)
+    // Helper function to format time
     private fun formatTime(totalSeconds: Int): String {
         val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds.toLong())
         val seconds = totalSeconds - TimeUnit.MINUTES.toSeconds(minutes).toInt()
@@ -84,27 +82,39 @@ class TimerAdapter(
     // Helper function to convert temperature
     private fun convertTemperature(tempCelsius: Double, targetUnit: String): Pair<Double, String> {
         return when (targetUnit) {
-            "Fahrenheit" -> {
-                val fahrenheit = (tempCelsius * 9 / 5) + 32
-                Pair(fahrenheit, "F")
+            "Fahrenheit" -> ((tempCelsius * 9 / 5) + 32) to "F"
+            "GasMark" -> convertCelsiusToGasMark(tempCelsius) to "GM"
+            else -> tempCelsius to "C"
+        }
+    }
+
+    private fun convertCelsiusToGasMark(tempCelsius: Double): Double {
+        return when {
+            tempCelsius < 135 -> 0.25
+            tempCelsius < 150 -> 1.0
+            tempCelsius < 165 -> 2.0
+            tempCelsius < 175 -> 3.0
+            tempCelsius < 190 -> 4.0
+            tempCelsius < 200 -> 5.0
+            tempCelsius < 220 -> 6.0
+            tempCelsius < 230 -> 7.0
+            tempCelsius < 240 -> 8.0
+            tempCelsius < 260 -> 9.0
+            else -> 10.0
+        }
+    }
+
+    // Companion object to hold the DiffUtil.ItemCallback.
+    // This is scoped to the adapter and prevents naming conflicts.
+    companion object {
+        private val DiffCallback = object : DiffUtil.ItemCallback<Timer>() {
+            override fun areItemsTheSame(oldItem: Timer, newItem: Timer): Boolean {
+                return oldItem.id == newItem.id
             }
-            "GasMark" -> {
-                val gasMark = when {
-                    tempCelsius < 135 -> 0.25
-                    tempCelsius < 150 -> 1.0
-                    tempCelsius < 165 -> 2.0
-                    tempCelsius < 175 -> 3.0
-                    tempCelsius < 190 -> 4.0
-                    tempCelsius < 200 -> 5.0
-                    tempCelsius < 220 -> 6.0
-                    tempCelsius < 230 -> 7.0
-                    tempCelsius < 240 -> 8.0
-                    tempCelsius < 260 -> 9.0
-                    else -> 10.0 // Gas Mark 10 or higher
-                }
-                Pair(gasMark, "GM")
+
+            override fun areContentsTheSame(oldItem: Timer, newItem: Timer): Boolean {
+                return oldItem == newItem
             }
-            else -> Pair(tempCelsius, "C") // Default to Celsius
         }
     }
 }

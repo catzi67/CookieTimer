@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import android.util.Log
+import com.google.android.material.snackbar.Snackbar
 
 // MainActivity: Handles the main UI, manages the list of timers, and interacts with the adapter.
 class MainActivity : AppCompatActivity() {
@@ -176,19 +177,21 @@ class MainActivity : AppCompatActivity() {
             val position = viewHolder.bindingAdapterPosition
             if (position != RecyclerView.NO_POSITION) {
                 val timerToDelete = timerAdapter.currentList[position]
-                MaterialAlertDialogBuilder(this@MainActivity)
-                    .setTitle(getString(R.string.delete_timer_dialog_title))
-                    .setMessage(getString(R.string.delete_timer_dialog_message))
-                    .setPositiveButton(getString(R.string.delete_button_text)) { dialog, _ ->
+
+                // Delete from the database immediately. The Flow will update the UI.
+                CoroutineScope(Dispatchers.IO).launch {
+                    timerDao.deleteTimer(timerToDelete)
+                    Log.d(TAG, "Timer with ID ${timerToDelete.id} deleted from DB.")
+                }
+
+                // Show a Snackbar with an Undo action
+                Snackbar.make(recyclerView, "Timer deleted", Snackbar.LENGTH_LONG)
+                    .setAction("Undo") {
+                        // If undo is clicked, re-insert the timer. The Flow will update the UI.
                         CoroutineScope(Dispatchers.IO).launch {
-                            timerDao.deleteTimer(timerToDelete)
-                            Log.d(TAG, "Timer with ID ${timerToDelete.id} deleted from DB.")
+                            timerDao.insertTimer(timerToDelete)
+                            Log.d(TAG, "Undo delete for timer with ID ${timerToDelete.id}.")
                         }
-                        dialog.dismiss()
-                    }
-                    .setNegativeButton(getString(R.string.cancel_button_text)) { dialog, _ ->
-                        timerAdapter.notifyItemChanged(position) // Reverts the swipe
-                        dialog.cancel()
                     }
                     .show()
             }
