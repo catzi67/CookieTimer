@@ -9,19 +9,18 @@ import androidx.room.PrimaryKey
 // Room Entity: Represents a table in your database.
 // tableName specifies the name of the table.
 @Entity(tableName = "timers")
-data class Timer @JvmOverloads constructor( // Added @JvmOverloads to generate overloaded constructors for Java/Room
-    // PrimaryKey automatically generates unique IDs for new timers.
-    // autoGenerate = true ensures that Room generates the ID.
+data class Timer @JvmOverloads constructor(
     @PrimaryKey(autoGenerate = true)
-    var id: Long = 0L, // Changed from val to var, and ensuring a default value
-    var name: String = "", // Changed from val to var to provide a setter for Room
-    var initialDurationSeconds: Int = 0, // Changed from val to var to provide a setter for Room
-    var remainingTimeSeconds: Int = 0, // Added default value
-    var isRunning: Boolean = false, // Added default value
-    var isCompleted: Boolean = false, // Added default value
-    var temperatureCelsius: Double? = null, // Optional cooking temperature in Celsius
-    var originalInputUnit: String? = null, // Unit the temperature was originally entered in (e.g., "Celsius")
-    var lastStartedTimestamp: Long? = null, // New: Timestamp when the timer was last started (System.currentTimeMillis())
+    var id: Long = 0L,
+    var name: String = "",
+    var initialDurationSeconds: Int = 0,
+    var remainingTimeSeconds: Int = 0, // This will be the source of truth for resume
+    var isRunning: Boolean = false,
+    var isCompleted: Boolean = false,
+    var temperatureCelsius: Double? = null,
+    var originalInputUnit: String? = null,
+    // CRUCIAL: Use lastStartedTimestamp to calculate elapsed time for resume/stop.
+    var lastStartedTimestamp: Long? = null, // Timestamp when the timer was last started (System.currentTimeMillis())
     // @Ignore tells Room to not persist this field in the database.
     // CountDownTimer is a UI-related object and should not be saved.
     @Ignore @Transient var countDownTimer: CountDownTimer? = null
