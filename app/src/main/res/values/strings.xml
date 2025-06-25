@@ -37,4 +37,8 @@
     <string name="timer_alarm_notification_title">%1$s Timer Finished!</string>
     <string name="timer_alarm_notification_content">Your cooking timer has completed.</string>
     <string name="notification_permission_denied">Notification permission denied. Timer alarms may not be shown.</string>
+
+    <!-- New strings to fix flicker issue -->
+    <string name="timer_completed_text">TIME\'S UP!</string>
+
 </resources>
