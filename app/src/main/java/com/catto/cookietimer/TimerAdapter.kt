@@ -1,6 +1,7 @@
 // --- src/main/java/com/catto/cookietimer/TimerAdapter.kt ---
 package com.catto.cookietimer
 
+import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,10 +10,11 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 // TimerAdapter: Binds Timer data to individual card views in the RecyclerView.
-// Updated to use ListAdapter for better performance and with an internal DiffCallback.
+// Updated to use ListAdapter with payloads for efficient partial updates.
 class TimerAdapter(
     private val onStartClick: (Long) -> Unit, // Callback for Start button
     private val onStopClick: (Long) -> Unit,  // Callback for Stop button
@@ -37,14 +39,32 @@ class TimerAdapter(
         return TimerViewHolder(view)
     }
 
-    // Binds data from a Timer object to the views in a ViewHolder
+    // This onBindViewHolder is for partial updates (payloads).
+    // It's called when DiffUtil determines that only specific parts of the item have changed.
+    override fun onBindViewHolder(holder: TimerViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isEmpty()) {
+            // If there are no payloads, this is a full update, so we call the standard onBindViewHolder.
+            super.onBindViewHolder(holder, position, payloads)
+        } else {
+            // If there are payloads, we handle the partial update.
+            val bundle = payloads[0] as Bundle
+            for (key in bundle.keySet()) {
+                if (key == "PAYLOAD_TIME_UPDATE") {
+                    // If only the time changed, just update the countdown text.
+                    holder.countdownText.text = formatTime(bundle.getInt(key))
+                }
+            }
+        }
+    }
+
+    // This onBindViewHolder is for full updates (when the whole item needs to be redrawn).
     override fun onBindViewHolder(holder: TimerViewHolder, position: Int) {
         val timer = getItem(position)
 
+        // Bind all data for a full redraw
         holder.timerName.text = timer.name
         holder.countdownText.text = formatTime(timer.remainingTimeSeconds)
 
-        // Display temperature if available
         timer.temperatureCelsius?.let { tempCelsius ->
             val (convertedTemp, unitSymbol) = convertTemperature(tempCelsius, currentTemperatureUnit)
             holder.temperatureText.text = holder.itemView.context.getString(R.string.temperature_display_format, convertedTemp.toInt(), unitSymbol)
@@ -53,33 +73,30 @@ class TimerAdapter(
             holder.temperatureText.visibility = View.GONE
         }
 
-        // Set button states
         holder.buttonStart.isEnabled = !timer.isRunning && !timer.isCompleted
         holder.buttonStop.isEnabled = timer.isRunning
         holder.buttonReset.isEnabled = true
 
-        // Update countdown text color
         if (timer.isCompleted) {
-            holder.countdownText.text = "TIME'S UP!"
+            // Use string resource to fix hardcoded string warning
+            holder.countdownText.text = holder.itemView.context.getString(R.string.timer_completed_text)
             holder.countdownText.setTextColor(holder.itemView.context.getColor(R.color.red_700))
         } else {
             holder.countdownText.setTextColor(holder.itemView.context.getColor(R.color.blue_600))
         }
 
-        // Set click listeners
         holder.buttonStart.setOnClickListener { onStartClick(timer.id) }
         holder.buttonStop.setOnClickListener { onStopClick(timer.id) }
         holder.buttonReset.setOnClickListener { onResetClick(timer.id) }
     }
 
-    // Helper function to format time
     private fun formatTime(totalSeconds: Int): String {
         val minutes = TimeUnit.SECONDS.toMinutes(totalSeconds.toLong())
         val seconds = totalSeconds - TimeUnit.MINUTES.toSeconds(minutes).toInt()
-        return String.format("%02d:%02d", minutes, seconds)
+        // Specify locale to fix warning
+        return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
     }
 
-    // Helper function to convert temperature
     private fun convertTemperature(tempCelsius: Double, targetUnit: String): Pair<Double, String> {
         return when (targetUnit) {
             "Fahrenheit" -> ((tempCelsius * 9 / 5) + 32) to "F"
@@ -90,22 +107,13 @@ class TimerAdapter(
 
     private fun convertCelsiusToGasMark(tempCelsius: Double): Double {
         return when {
-            tempCelsius < 135 -> 0.25
-            tempCelsius < 150 -> 1.0
-            tempCelsius < 165 -> 2.0
-            tempCelsius < 175 -> 3.0
-            tempCelsius < 190 -> 4.0
-            tempCelsius < 200 -> 5.0
-            tempCelsius < 220 -> 6.0
-            tempCelsius < 230 -> 7.0
-            tempCelsius < 240 -> 8.0
-            tempCelsius < 260 -> 9.0
-            else -> 10.0
+            tempCelsius < 135 -> 0.25; tempCelsius < 150 -> 1.0; tempCelsius < 165 -> 2.0
+            tempCelsius < 175 -> 3.0; tempCelsius < 190 -> 4.0; tempCelsius < 200 -> 5.0
+            tempCelsius < 220 -> 6.0; tempCelsius < 230 -> 7.0; tempCelsius < 240 -> 8.0
+            tempCelsius < 260 -> 9.0; else -> 10.0
         }
     }
 
-    // Companion object to hold the DiffUtil.ItemCallback.
-    // This is scoped to the adapter and prevents naming conflicts.
     companion object {
         private val DiffCallback = object : DiffUtil.ItemCallback<Timer>() {
             override fun areItemsTheSame(oldItem: Timer, newItem: Timer): Boolean {
@@ -113,7 +121,23 @@ class TimerAdapter(
             }
 
             override fun areContentsTheSame(oldItem: Timer, newItem: Timer): Boolean {
+                // This now checks all fields. If false, getChangePayload will be called.
                 return oldItem == newItem
+            }
+
+            override fun getChangePayload(oldItem: Timer, newItem: Timer): Any? {
+                // This is called if areContentsTheSame is false.
+                // We check if only the time has changed and create a "payload" for it.
+                val diffBundle = Bundle()
+                if (newItem.remainingTimeSeconds != oldItem.remainingTimeSeconds) {
+                    diffBundle.putInt("PAYLOAD_TIME_UPDATE", newItem.remainingTimeSeconds)
+                }
+
+                // If any other property changed, we don't add to the bundle,
+                // which will trigger a full re-bind. This part is implicitly handled
+                // by returning null if the bundle is empty.
+
+                return if (diffBundle.size() == 0) null else diffBundle
             }
         }
     }
