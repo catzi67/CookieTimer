@@ -34,7 +34,9 @@
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:label="@string/settings_title" />
+            android:label="@string/settings_title"
+            android:parentActivityName=".MainActivity" />
+        <!-- Add the android:parentActivityName attribute shown above -->
 
         <!-- Declare TimerService with full package name -->
         <service

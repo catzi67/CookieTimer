@@ -3,35 +3,72 @@
     <!-- Base application theme. -->
     <style name="Theme.CookieTimer" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Primary brand color. -->
-        <!-- Setting primaryColor to blue_600 to influence default Material button tints -->
         <item name="colorPrimary">@color/blue_600</item>
         <item name="colorPrimaryVariant">@color/blue_700</item>
         <item name="colorOnPrimary">@color/white</item>
         <!-- Secondary brand color. -->
-        <!-- Setting secondaryColor to gray_700 -->
         <item name="colorSecondary">@color/gray_700</item>
         <item name="colorSecondaryVariant">@color/gray_800</item>
         <item name="colorOnSecondary">@color/white</item>
         <!-- Status bar color. -->
-        <item name="android:statusBarColor">@color/transparent_gray_800</item>
-        <!-- Customize your theme here. -->
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
 
-        <!-- Accent color, can influence default button text/tint in some older contexts or Material default. -->
-        <!-- Keep colorAccent as blue_600 as a fallback -->
+        <!-- Added missing theme attributes -->
+        <item name="colorError">@color/red_600</item>
+        <item name="colorOnError">@color/white</item>
+        <item name="colorSecondaryContainer">@color/blue_200</item>
+        <item name="colorOnSecondaryContainer">@color/gray_800</item>
+        <item name="colorOnSurfaceVariant">@color/gray_600</item>
+
         <item name="colorAccent">@color/blue_600</item>
 
-        <!-- Style for dialog buttons. These should now be picked up reliably by MaterialAlertDialogBuilder. -->
         <item name="buttonBarPositiveButtonStyle">@style/Widget.App.Button.AlertDialog.Positive</item>
         <item name="buttonBarNegativeButtonStyle">@style/Widget.App.Button.AlertDialog.Negative</item>
     </style>
 
+    <!-- Dark Theme -->
+    <style name="Theme.CookieTimer.Dark" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/dark_blue_500</item>
+        <item name="colorPrimaryVariant">@color/dark_blue_700</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/dark_gray_300</item>
+        <item name="colorSecondaryVariant">@color/dark_gray_500</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <item name="colorSurface">@color/dark_gray_800</item>
+        <item name="colorOnSurface">@color/dark_text</item>
+        <item name="colorError">@color/red_300</item>
+        <item name="colorOnError">@color/black</item>
+        <item name="colorSecondaryContainer">@color/dark_gray_500</item>
+        <item name="colorOnSecondaryContainer">@color/white</item>
+        <item name="colorOnSurfaceVariant">@color/dark_gray_300</item>
+    </style>
+
+    <!-- Oven Glow Theme -->
+    <style name="Theme.CookieTimer.OvenGlow" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/oven_orange_500</item>
+        <item name="colorPrimaryVariant">@color/oven_orange_700</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/oven_yellow_500</item>
+        <item name="colorSecondaryVariant">@color/oven_yellow_700</item>
+        <item name="colorOnSecondary">@color/black</item>
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <item name="colorSurface">@color/oven_background</item>
+        <item name="colorOnSurface">@color/black</item>
+        <item name="colorError">@color/red_600</item>
+        <item name="colorOnError">@color/white</item>
+        <item name="colorSecondaryContainer">@color/oven_yellow_500</item>
+        <item name="colorOnSecondaryContainer">@color/black</item>
+        <item name="colorOnSurfaceVariant">@color/gray_700</item>
+    </style>
+
     <!-- Custom style for the positive button in AlertDialogs -->
     <style name="Widget.App.Button.AlertDialog.Positive" parent="Widget.MaterialComponents.Button.TextButton">
-        <item name="android:textColor">@color/blue_600</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
     </style>
 
     <!-- Custom style for the negative button in AlertDialogs -->
     <style name="Widget.App.Button.AlertDialog.Negative" parent="Widget.MaterialComponents.Button.TextButton">
-        <item name="android:textColor">@color/gray_700</item>
+        <item name="android:textColor">?attr/colorSecondary</item>
     </style>
 </resources>

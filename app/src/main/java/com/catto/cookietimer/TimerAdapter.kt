@@ -52,13 +52,14 @@ class TimerAdapter(
 
     override fun onBindViewHolder(holder: TimerViewHolder, position: Int) {
         val timer = getItem(position)
+        val context = holder.itemView.context
 
         holder.timerName.text = timer.name
         holder.countdownText.text = formatTime(timer.remainingTimeSeconds)
 
         timer.temperatureCelsius?.let { tempCelsius ->
             val (convertedTemp, unitSymbol) = convertTemperature(tempCelsius, currentTemperatureUnit)
-            holder.temperatureText.text = holder.itemView.context.getString(R.string.temperature_display_format, convertedTemp.toInt(), unitSymbol)
+            holder.temperatureText.text = context.getString(R.string.temperature_display_format, convertedTemp.toInt(), unitSymbol)
             holder.temperatureText.visibility = View.VISIBLE
         } ?: run {
             holder.temperatureText.visibility = View.GONE
@@ -69,10 +70,10 @@ class TimerAdapter(
         holder.buttonReset.isEnabled = true
 
         if (timer.isCompleted) {
-            holder.countdownText.text = holder.itemView.context.getString(R.string.timer_completed_text)
-            holder.countdownText.setTextColor(holder.itemView.context.getColor(R.color.red_700))
+            holder.countdownText.text = context.getString(R.string.timer_completed_text)
+            holder.countdownText.setTextColor(context.getColor(R.color.red_700))
         } else {
-            holder.countdownText.setTextColor(holder.itemView.context.getColor(R.color.blue_600))
+            holder.countdownText.setTextColor(context.getColor(R.color.blue_600))
         }
 
         holder.buttonStart.setOnClickListener { onStartClick(timer.id) }
@@ -114,15 +115,13 @@ class TimerAdapter(
             }
 
             override fun getChangePayload(oldItem: Timer, newItem: Timer): Any? {
-                // If the main state of the timer has changed, we need a full rebind.
                 if (oldItem.name != newItem.name ||
                     oldItem.isRunning != newItem.isRunning ||
                     oldItem.isCompleted != newItem.isCompleted ||
                     oldItem.temperatureCelsius != newItem.temperatureCelsius) {
-                    return null // Return null for a full rebind
+                    return null
                 }
 
-                // If only the time has changed, create a payload for a partial update.
                 if (newItem.remainingTimeSeconds != oldItem.remainingTimeSeconds) {
                     val diffBundle = Bundle()
                     diffBundle.putInt("PAYLOAD_TIME_UPDATE", newItem.remainingTimeSeconds)

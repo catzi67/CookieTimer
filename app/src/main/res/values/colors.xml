@@ -40,4 +40,20 @@
 
     <!-- Semi-transparent dark gray for status bar -->
     <color name="transparent_gray_800">#CC212121</color>
+
+    <!-- Dark Theme Colors -->
+    <color name="dark_blue_500">#3F51B5</color>
+    <color name="dark_blue_700">#303F9F</color>
+    <color name="dark_gray_300">#B0BEC5</color>
+    <color name="dark_gray_500">#607D8B</color>
+    <color name="dark_gray_800">#303030</color>
+    <color name="dark_gray_900">#212121</color>
+    <color name="dark_text">#FFFFFF</color>
+
+    <!-- Oven Glow Theme Colors -->
+    <color name="oven_orange_500">#FF9800</color>
+    <color name="oven_orange_700">#F57C00</color>
+    <color name="oven_yellow_500">#FFC107</color>
+    <color name="oven_yellow_700">#FFA000</color>
+    <color name="oven_background">#FFFDE7</color>
 </resources>

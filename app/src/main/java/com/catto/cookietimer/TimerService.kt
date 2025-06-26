@@ -29,15 +29,11 @@ class TimerService : Service() {
     private lateinit var database: AppDatabase
     private lateinit var timerDao: TimerDao
     private var vibrator: Vibrator? = null
-    // MediaPlayer is now managed per-alarm, not as a long-lived service property.
-    // private var mediaPlayer: MediaPlayer? = null
 
     private lateinit var notificationManager: NotificationManager
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
 
-    // Map to hold active CountDownTimer instances by their ID
     private val activeCountDownTimers = ConcurrentHashMap<Long, CountDownTimer>()
-
 
     companion object {
         const val TAG = "TimerService"
@@ -47,7 +43,7 @@ class TimerService : Service() {
         const val ACTION_STOP_TIMER = "com.catto.cookietimer.ACTION_STOP_TIMER"
         const val ACTION_RESET_TIMER = "com.catto.cookietimer.ACTION_RESET_TIMER"
 
-        const val EXTRA_TIMER_ID = "extra_timer_id" // To pass timer ID with intents
+        const val EXTRA_TIMER_ID = "extra_timer_id"
     }
 
     override fun onCreate() {
@@ -130,8 +126,7 @@ class TimerService : Service() {
                             val updatedTimer = it.copy(
                                 remainingTimeSeconds = timeToStart,
                                 isRunning = true,
-                                isCompleted = false,
-                                lastStartedTimestamp = System.currentTimeMillis()
+                                isCompleted = false
                             )
                             timerDao.updateTimer(updatedTimer)
                             Log.d(TAG, "Sent start command for timer ${it.name} (ID: ${it.id}) to DB.")
@@ -145,7 +140,7 @@ class TimerService : Service() {
                     serviceScope.launch {
                         timerDao.getAllTimers().firstOrNull()?.find { it.id == timerId }?.let {
                             stopCountdownForTimer(it.id)
-                            val updatedTimer = it.copy(isRunning = false, lastStartedTimestamp = null)
+                            val updatedTimer = it.copy(isRunning = false)
                             timerDao.updateTimer(updatedTimer)
                             Log.d(TAG, "Sent stop command for timer ${it.name} (ID: ${it.id}) to DB.")
                         }
@@ -161,8 +156,7 @@ class TimerService : Service() {
                             val updatedTimer = it.copy(
                                 remainingTimeSeconds = it.initialDurationSeconds,
                                 isRunning = false,
-                                isCompleted = false,
-                                lastStartedTimestamp = null
+                                isCompleted = false
                             )
                             timerDao.updateTimer(updatedTimer)
                             Log.d(TAG, "Sent reset command for timer ${it.name} (ID: ${it.id}) to DB.")
@@ -209,11 +203,9 @@ class TimerService : Service() {
                         )
                         activeCountDownTimers.remove(timer.id)
 
-                        // Play sounds and wait for completion
                         playVibration()
                         playAlarmSoundAndWait()
 
-                        // AFTER sound is done, update the DB. This will trigger the service stop check.
                         Log.d(TAG, "Alarm finished. Updating DB for timer ${timer.name}")
                         val updatedTimer = timer.copy(remainingTimeSeconds = 0, isRunning = false, isCompleted = true)
                         timerDao.updateTimer(updatedTimer)
@@ -265,7 +257,7 @@ class TimerService : Service() {
                 if (continuation.isActive) {
                     continuation.resume(Unit)
                 }
-                true // Error was handled
+                true
             }
         }
 
@@ -305,7 +297,6 @@ class TimerService : Service() {
         super.onDestroy()
         stopAllActiveTimers()
         serviceScope.cancel()
-        // No longer need to release the service-level media player
         vibrator?.cancel()
         Log.d(TAG, "TimerService onDestroy")
     }

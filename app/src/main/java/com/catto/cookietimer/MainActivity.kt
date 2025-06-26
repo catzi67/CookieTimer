@@ -26,11 +26,13 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var timerAdapter: TimerAdapter
-    // The list of timers is now managed by the ListAdapter, so no local list is needed.
 
     private lateinit var database: AppDatabase
     private lateinit var timerDao: TimerDao
     private lateinit var sharedPreferencesManager: SharedPreferencesManager
+
+    // Store the theme resource ID that was applied in onCreate
+    private var appliedThemeResId: Int = 0
 
     companion object {
         private const val TAG = "CookieTimerApp"
@@ -38,38 +40,41 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        sharedPreferencesManager = SharedPreferencesManager(this)
+
+        // Determine and set the theme, then store it
+        appliedThemeResId = when (sharedPreferencesManager.getTheme()) {
+            SharedPreferencesManager.THEME_DARK -> R.style.Theme_CookieTimer_Dark
+            SharedPreferencesManager.THEME_OVEN_GLOW -> R.style.Theme_CookieTimer_OvenGlow
+            else -> R.style.Theme_CookieTimer
+        }
+        setTheme(appliedThemeResId)
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Request notification permission on newer Android versions
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQUEST_CODE_POST_NOTIFICATIONS)
             }
         }
 
-        // Initialize components
         database = AppDatabase.getDatabase(this)
         timerDao = database.timerDao()
-        sharedPreferencesManager = SharedPreferencesManager(this)
 
-        // Setup RecyclerView and Adapter
         setupRecyclerView()
 
-        // Observe timers from the database and submit them to the adapter
         CoroutineScope(Dispatchers.Main).launch {
             timerDao.getAllTimers().collectLatest { loadedTimers ->
                 Log.d(TAG, "Timers loaded from DB: ${loadedTimers.size} timers.")
-                timerAdapter.submitList(loadedTimers) // Use submitList for efficient updates
+                timerAdapter.submitList(loadedTimers)
 
-                // Ensure service is running if there are active timers when app opens
                 if (loadedTimers.any { it.isRunning }) {
                     startTimerService()
                 }
             }
         }
 
-        // Set up button listeners
         findViewById<MaterialButton>(R.id.buttonAddTimer).setOnClickListener {
             showAddTimerDialog()
         }
@@ -90,14 +95,25 @@ class MainActivity : AppCompatActivity() {
         )
         recyclerView.adapter = timerAdapter
 
-        // Attach ItemTouchHelper to enable swipe-to-delete
         val itemTouchHelper = ItemTouchHelper(SwipeToDeleteCallback())
         itemTouchHelper.attachToRecyclerView(recyclerView)
     }
 
     override fun onResume() {
         super.onResume()
-        // Update the adapter with the latest temperature unit preference and redraw items
+        // Check if the saved theme preference is different from the one applied when the activity was created
+        val savedTheme = sharedPreferencesManager.getTheme()
+        val expectedThemeResId = when (savedTheme) {
+            SharedPreferencesManager.THEME_DARK -> R.style.Theme_CookieTimer_Dark
+            SharedPreferencesManager.THEME_OVEN_GLOW -> R.style.Theme_CookieTimer_OvenGlow
+            else -> R.style.Theme_CookieTimer
+        }
+
+        if (appliedThemeResId != expectedThemeResId) {
+            recreate()
+            return // Avoid doing other work if we are recreating
+        }
+
         timerAdapter.currentTemperatureUnit = sharedPreferencesManager.getTemperatureUnit()
         timerAdapter.notifyItemRangeChanged(0, timerAdapter.itemCount)
         Log.d(TAG, "MainActivity onResume: Updated adapter with temperature unit: ${sharedPreferencesManager.getTemperatureUnit()}")
@@ -129,15 +145,23 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(getString(R.string.add_button_text)) { dialog, _ ->
                 val name = inputName.text.toString().trim()
                 val durationMinutes = inputDuration.text.toString().toIntOrNull()
-                val temperatureCelsius = inputTemperature.text.toString().trim().toDoubleOrNull()
+                val tempInput = inputTemperature.text.toString().trim().toDoubleOrNull()
+
+                // Convert the input temperature to Celsius based on the current setting
+                val temperatureInCelsius = tempInput?.let {
+                    when (sharedPreferencesManager.getTemperatureUnit()) {
+                        "Fahrenheit" -> (it - 32) * 5 / 9
+                        "GasMark" -> convertGasMarkToCelsius(it)
+                        else -> it // Assumed to be Celsius
+                    }
+                }
 
                 if (name.isNotEmpty() && durationMinutes != null && durationMinutes > 0) {
                     val newTimer = Timer(
                         name = name,
                         initialDurationSeconds = durationMinutes * 60,
                         remainingTimeSeconds = durationMinutes * 60,
-                        temperatureCelsius = temperatureCelsius,
-                        originalInputUnit = "Celsius"
+                        temperatureCelsius = temperatureInCelsius
                     )
                     CoroutineScope(Dispatchers.IO).launch {
                         timerDao.insertTimer(newTimer)
@@ -151,6 +175,21 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton(getString(R.string.cancel_button_text)) { dialog, _ -> dialog.cancel() }
             .show()
+    }
+
+    private fun convertGasMarkToCelsius(gasMark: Double): Double {
+        return when {
+            gasMark < 1 -> 121.0
+            gasMark < 2 -> 135.0
+            gasMark < 3 -> 149.0
+            gasMark < 4 -> 163.0
+            gasMark < 5 -> 177.0
+            gasMark < 6 -> 191.0
+            gasMark < 7 -> 204.0
+            gasMark < 8 -> 218.0
+            gasMark < 9 -> 232.0
+            else -> 246.0
+        }
     }
 
     private fun sendTimerCommand(timerId: Long, action: String) {
@@ -178,16 +217,13 @@ class MainActivity : AppCompatActivity() {
             if (position != RecyclerView.NO_POSITION) {
                 val timerToDelete = timerAdapter.currentList[position]
 
-                // Delete from the database immediately. The Flow will update the UI.
                 CoroutineScope(Dispatchers.IO).launch {
                     timerDao.deleteTimer(timerToDelete)
                     Log.d(TAG, "Timer with ID ${timerToDelete.id} deleted from DB.")
                 }
 
-                // Show a Snackbar with an Undo action
                 Snackbar.make(recyclerView, "Timer deleted", Snackbar.LENGTH_LONG)
                     .setAction("Undo") {
-                        // If undo is clicked, re-insert the timer. The Flow will update the UI.
                         CoroutineScope(Dispatchers.IO).launch {
                             timerDao.insertTimer(timerToDelete)
                             Log.d(TAG, "Undo delete for timer with ID ${timerToDelete.id}.")
